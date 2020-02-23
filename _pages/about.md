@@ -1,3 +1,9 @@
+---
+title:     My Awesome Page
+permalink: /awesome
+layout:    page
+---
+
 # About Adam
 
 All the things 
