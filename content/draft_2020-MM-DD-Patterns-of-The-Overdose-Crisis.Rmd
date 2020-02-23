@@ -1,7 +1,7 @@
 ---
 title: "Patterns of the American Overdose Crisis"
 author: "Adam N. Wlostowski"
-date: "2/23/2020"
+date: "2020/02/23"
 output:
   html_document:
     df_print: paged
