@@ -154,6 +154,8 @@ footer:
       icon: "fab fa-fw fa-instagram"
       # url:
 
+# Pages
+include: ['_pages']
 
 # Reading Files
 include:
