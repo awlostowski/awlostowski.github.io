@@ -7,12 +7,29 @@ output:
     df_print: paged
     toc: yes
     toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
 layout: post
+fontsize: 12pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = T)
 ```
+
+<style type="text/css">
+
+body, td {
+   font-size: 14px;
+}
+code.r{
+  font-size: 14px;
+}
+pre {
+  font-size: 12px
+}
+</style>
 
 ```{r include = F}
 remove(list = ls()) # clear all workspace variables
@@ -25,30 +42,28 @@ library(cowplot); theme_set(theme_cowplot())
 
 ```
 # Take Home Messages
-1. **Overdose deaths in the United States have increase by 167% between 2003 and 2017**
+1. **Overdose deaths in the United States have increase 167% between 2003 and 2017**
 2. **Over 70,000 people died from an overdose in 2017**
-3. **Hot-spot analysis reveals the the overdose crisis is especially bad Appalachia, New Mexico, and the Northeast Corridor.**
+3. **Hot-spot analysis reveals the overdose crisis is worst in Appalachia, New Mexico, Mid-Atlantic, and New England.**
 
 # Motivation
-I have been fascinated by the opioid crisis in America for several years. It is arguably the paramount domestic issue of my generation. Almost everyone knows someone who has been affected by drug abuse. Personally, a former roommate and fraternity brother of mine died of an overdose. Recently, the Centers for Disease Control (CDC) [announced](https://www.cdc.gov/drugoverdose/index.html) that drug overdose was the leading cause of death in 2017. With this, the CDC codified a perceived  crisis with a stone cold number - *70,000* - the number of Americans who died from an overdose in 2017. So, what’s the plan? What are we going to do about this? I have no idea, but it can’t hurt to get familiar with the data. 
+Recently, the [Centers for Disease Control](https://www.cdc.gov/drugoverdose/index.html) (CDC) announced that drug overdose was the leading cause of death among young people in the U.S. Over 70,000 Americans died from an overdose in 2017, alone. Surely, the opioid epidemic is one of the greatest public health crises of the 21st century.
 
-This notebook presents a quick exploration of overdose fatality data. 
+In this post I investigate overdose death count data to better understand America's drug overdose epidemic.  Specifically, I use data from the Centers for Disease Control to show how overdose death rates changed between 2003 – 2017. 
 
-**Objective**: Quantify spatial and temporal patterns of overdose deaths in America. 
+- **Objective**: Quantify patterns of overdose deaths in America.
+- **Rationale**: Patterns in the data are useful targets for predictive models. We can learn from predictive models. So, is pattern identification the first step of the learning process? 
 
-**Rationale**: Before we try to explain what’s causing the overdose crisis and propose solutions, we need characterize and quantify the nature of the crisis itself.
+# The Data
+The CDC publishes a wealth of data  characterizing the health of American communities. The [Underlying Cause of Death](https://wonder.cdc.gov/ucd-icd10.html) database reports the demographics, timing, location and cause of death. In other words, CDC tracks the *who*, *what*, *where*, *why* and *when* of people dying in the United States. These data are made available through the [WONDERES](https://wonder.cdc.gov) database - an excellent (free) resource for characterize drug overdose death patterns in the United States. 
 
-# The Data Set
-The CDC publishes a wealth of data characterizing the health of American communities. The Underlying Cause of Death database reports the demographics, timing, location and cause of mortality throughout the nation. In other words, CDC tracks the who, what, where, why and when of people dying in the United States. These data are made available through the [WONDERES](https://wonder.cdc.gov) database portal. This is an excellent database for assessing patterns in drug overdose deaths, and is therefore the best choice for this notebook.
-While the WONDERS database is an amazing resource, it has it’s difficulties. Fatalities data are highly suppressed to protect the privacy rights of U.S. citizens. The CDC suppresses death counts of less than ten (0-9) for a specific demographic/location/time categorization. Becuase so many counties in America have small populations, it is common for much of the data to be suppressed. Data suppression makes it [difficult to draw inferences at small spatial scales (e.g. counties)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4103252/). In response, researchers have come up with clever ways to infill suppressed data and produce serially complete data products. One such data product is provided by CDC, called [*NCHS - Drug Poisoning Mortality by County: United States*](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/). 
+However, the WONDERS database has some drawbacks. First, fatalities data are highly suppressed for privacy reasons. The CDC suppresses death counts of less than ten (0-9) for a specific demographic/location/time categorization. Becuase so many counties in America have small populations, it is common to end up with a lot of suppressed data. In turn, it can be [difficult to draw inferences at small spatial scales (e.g. counties)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4103252/). In response, researchers have come up with clever ways to infill suppressed data and produce serially complete data products. One such data product is provided by CDC, called [*NCHS - Drug Poisoning Mortality by County: United States*](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/). 
 
-After trying to collate data directly from WONDERS, I became frustrated at how suppression and petty access hurdles made it difficult to obtain a robust data set. In turn, I decided to analyze the NCHS data product, rather than the raw data. For additional details on how the NCHS data were assembled, read the [Technical Note](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/#techNotes). In brief, the authors used Hierarchical Bayesian models with spatial random effects implemented with the [`INLA` package](https://becarioprecario.bitbucket.io/spde-gitbook/ch-INLA.html) for R.
+I chose to work with the NCHS data product, rather than working with raw data. I made this decision, in part, due to the troubles of working with highly suppressed data. For additional details on how the NHCS data product was assembled, read the [Technical Note] (https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/#techNotes).
 
-**CAUTION**: I am wading forward with this dataset, even though I am not terribly familiar with the methods used to create it. I will need to learn more about Bayesian models to better grasp how the data were created and what sort of assumptions might bias emergent patterns. 
+I downloaded data from a nifty [Tableau dashboard](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/) hosted by the CDC.
 
-I downloaded data from a [Tableau dashboard](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/) created and hosted by CDC. A .csv file of county-level annual crude rates can be downloaded by clicking on the *County Estimates* link under the *Options* section of the dashboard.
-
-## First Glance
+## Data Structure
 OK, let's load the data and see what it looks like!
 ```{r message=FALSE}
 # navigate to where the data are housed
@@ -60,42 +75,18 @@ data <- read.csv("NCHS_-_Drug_Poisoning_Mortality_by_County__United_States.csv",
 data %>% head()
 ```
 
-It looks like the data set contains 13 variables:
+It looks like the data set contains 13 variables: For a complete list of variable descriptions go [here](https://data.cdc.gov/NCHS/NCHS-Drug-Poisoning-Mortality-by-County-United-Sta/p56q-jrxg). 
 
-Column 1, `data$ï..FIPS`: The state-county fips code <integer>. A county-specific numeric classification. Strange variable name out of the box
+The variable we will be paying lots of attention to in this project is `data$Model.based.Death.Rate`. This variable is also known as the “crude rate” - the number of fatalities reported each calendar year per 100,000 people:
 
-Column 2, `data$Year`: Year <integer>
+- `data$Model.based.Death.Rate = (Deaths/Population) * 100000`
 
-Column 3, `data$State`: State name <factor>
-
-Column 4, `data$FIPS.State`: State fips code <integer>
-
-Column 5, `data$County`: County name <factor>
-
-Column 6, `data$Population`: County population <factor> !!**WARNING** There are commas in the Population data - need to change!!
-
-Column 7, `data$Model.based.Death.Rate`: A simulated crude rate <double>
-
-Column 8, `data$Standard.Deviation`: Standard deviation of model based death rate <double>
-
-Column 9, `data$Lower.Confidence.Limit`: Lower confidence limit of model based death rate <double>
-
-Column 10, `data$Upper.Confidence.Limit`: Upper confidence limit of model based death rate <double>
-
-Column 11, `data$Urban.Rural.Category`: Categorical variable describing the county setting on a gradient from rural to urban <factor>
-
-Column 12, `data$Census.Division`: U.S. census dicision code <integer>.
-
-The variable we will be paying lots of attention to in this project is`data$Model.based.Death.Rate`. This variable is also known as the Crude Rate, or the number of fatalities reported each calendar year per 100,000 people:
-
-`data$Model.based.Death.Rate = (Deaths/Population) * 100000`
-
-## Cleaning the data
+## Data Cleaning
 There are a few clean-up needs before we start working with the data. First, I want to change the fips code variable `data$ï..FIPS` to something a little less strange
 ```{r}
 colnames(data)[colnames(data) == "ï..FIPS"] <- "fips"
 ```
-Next, we need to covert population from a factor to a numeric variable type
+Next, we need to convert population from a factor to a numeric variable type
 ```{r}
 # convert from factor to character
 data$Population = as.character(data$Population)
@@ -105,13 +96,10 @@ data$Population = gsub(",", "", data$Population)
 
 # convert from character to integer
 data$Population = as.integer(data$Population)
-
-# print the a snippet of the data to visually inspect
-data %>% head()
 ```
-# Investigating the Data
-## National overdose death trends with time
-Let's take at how the number of overdose deaths in the U.S. are changing over time. 
+# Investigation
+## Temporal trends
+Let’s take a look at how national overdose deaths are growing with time.
 ```{r}
 # calculate the number of fatalaties each year, nationwide. 
 national_deaths <- data %>%
@@ -143,14 +131,13 @@ p <- ggplot(national_deaths, aes(x = Year, y = Total.Deaths)) +
 print(p)
 
 ```
-This figure shows a progressive rise in overdose deaths in the U.S from 2003 to 2017. I overlaid the terms of U.S. Presidents on top of the data. I don't mean to imply that a certain president's politics was driving trends in the data. Rather, presidential terms are a convenient way for me to relate to the passing of time.
+This figure shows the rise in overdose deaths between 2003 to 2017. 
+-	The national death count increased 165% over this period. 
+-	There were over 70,000 overdose deaths in 2017!
+I overlaid U.S. presidential terms on top of the data. I don’t mean to imply that a certain president’s policies were responsible for the trend. Rather, presidential terms are a convenient way for me to frame the passing of time. We see that overdose deaths accelerated in the second term of the Obama administration. Death counts pushed even higher under the Trump administration. 
 
-The figure clearly illustrates a  surge in overdose deaths between 2010 to 2017.
-
-As a gut check, we can compare the national fatality total in 2017 estimated by this data set (71,014) against the CDC Tableau dashboard result (70,237). Why aren't these values the same? It could be due to contrasting methods for estimating death counts from crude rates. At least I am in the ball park! As another spot check let's compare my estimate of 2014 deaths (47,754) against the CDC's (47,055). Again, not exactly the same but very much in the ball park!
-
-## State Ranking - overdose rate (2017)
-Where is the opiod crisis the worst, as of 2017? Rank states by per capita overdose rates (i.e. crude rate)
+## State ranking by overdose rate (2017)
+Where is the opiod crisis the worst, as of 2017? Rank states by overdose crude rate to learn.
 ```{r}
 # calculate statewide per capita overdose rate in 2017, then rank
 state_rank_2018 <- filter(data, Year == 2017) %>%
@@ -161,10 +148,10 @@ state_rank_2018 <- filter(data, Year == 2017) %>%
 # Show the top ten states 
 state_rank_2018 %>% head(10)
 ```
-Looking at the table above, we see that DC has the most overdose deaths per capita. All states in the top ten are east of the Mississppi River. 
+The highest crude rate is observed in Washington D.C. Notice that all states in the top ten are east of the Mississippi River. 
 
-## State Ranking - rate of change in overdose rate (2003 - 2017)
-Where have overdose fatalities increased the most between 2003 and 2017? To quantify this, I built linear models to quantify the annual growth rate of per capita fatalities in each state. Then I ranked states by regression slopes, which quantify the inter-annual rates of change in per capita fatalities.
+## State ranking by rate of change in overdose rate (2003 - 2017)
+Where have overdose fatalities increased most rapidly between 2003 and 2017? To quantify this, I built linear models to quantify the annual growth rate of per capita fatalities in each state. Then I ranked states by growth rate (i.e. regression slope)
 ```{r}
 # calculate the time rate of change in per capita mortality rates in each state, rank 
 state_change <- data %>%
@@ -180,10 +167,10 @@ state_change <- data %>%
 state_change %>% head(10)
 
 ```
-The greatest increses in overdose deaths are seen in many of the same states with the greatest 2017 per capita fatalities. West Virginia has seen the most rapid rise in drug overdose deaths. 
+The greatest increses in overdose deaths are seen in many of the same states with the greatest 2017 per capita fatalities. West Virginia has seen the most rapid growth in per capita overdose deaths.
 
-## Geographic patterns in per capita overdose fatalities (2017)
-Let's create a map that visualizes 2017 per capita overdose deaths by county. I will take advantage of the `usamap` package.
+## Geographic patterns of overdose rates (2017)
+Let’s create a map that visualizes 2017 per capita overdose deaths by county. 
 ```{r warning = F, message = F}
 library(usmap)
 library(ggplot2)
@@ -202,12 +189,12 @@ plot_usmap(data = county_rates,
   ggtitle("County-level, per capita overdose death rates (2017)")
 
 ```
-Wow! Patterns jump out immediately. Per capita overdoses are greatest where the map is dark red. Rates look to be highest in Appalachia, Western Pennsylvania, South Eastern Pennsylvania, New Hampshire, Connecticut, Oklahoma, New Orleans, New Mexico.
+Overdose death rates are greatest where the map is redder. Rates look to be highest in Appalachia, Western Pennsylvania, South Eastern Pennsylvania, New Hampshire, Connecticut, Oklahoma, New Orleans, New Mexico.
 
 ## Identifying hot spots
 Can we objectively identify hot spots of drug overdose deaths? Rather than just eyeballing patterns in the map above, we can use spatial statistics to objectively identify hot spots. The Getis/Ord Gi* Z-value is used to evaluate local correlation in geospatial data and objectively identify hot and cold spots. In this case, high positive Z-values indicate a local cluster of high death rates. On the other hand, very low values identify clusters of low death rates. The original publication behind the Getis/Ord Gi* statistic can be found [here](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1538-4632.1992.tb00261.x).
 
-There are a few steps necessary to pull this analysis off. First, we need to get a shapefile of U.S. counties and spatially join our overdose data. Then, we identify neighboring counties (e.g. Boulder County touches Weld County - they are neighbors). Finally, we can use the `LocalG` function to calculate the Getis/Ord Gi* Z-value for each county. We will rely heavily on the [`spep`](https://cran.r-project.org/web/packages/spdep/spdep.pdf) package to do much of the heavy lifting.  
+There are a few steps necessary to pull this analysis off. First, we need to get a shapefile of U.S. counties and spatially join our overdose data. Then, we identify neighboring counties (e.g. Boulder County touches Weld County - they are neighbors). Finally, we can use the `LocalG` function to calculate the Getis/Ord Gi* Z-value for each county. We will rely heavily on the [`spdep`](https://cran.r-project.org/web/packages/spdep/spdep.pdf) package to do much of the heavy lifting.  
 
 1) Load a SpatialPolygons oject of U.S. counties throught the `tigris` package
 ```{r results = "hide", warning = F, message = F}
@@ -228,7 +215,7 @@ p$Rate <- rate_join$Rate
 
 p <- p[!is.na(p$Rate),]
 ```
-3) Identify neighboring counties with the the `poly2nb` funtion from the [`spdep`]((https://cran.r-project.org/web/packages/spdep/spdep.pdf)) package.
+3) Identify neighboring counties with the the `poly2nb` function from the [`spdep`]((https://cran.r-project.org/web/packages/spdep/spdep.pdf)) package.
 ``` {r warning = F, message = F}
 library(spdep)
 nb <- poly2nb(p, row.names = paste(p$STATEFP,p$COUNTYFP,sep = ""))
@@ -257,7 +244,10 @@ plot_usmap(data = gstar,
   scale_fill_viridis(option = "magma", limits = c(-15,15),name = "Gi*") +
   ggtitle("Hot & Cold Spots of Drug Overdose Deaths (2017)")
 ```
-Warmer colors indicate hot spots - where per capita overdose death rates are high. Cooler colors indicate cold spotsWhat - where per capita overdose death rates are low. This plot is useful for comparing and contrasing the prominance of overdoses between different regions of the country. 
+Warmer colors indicate hot spots - where per capita overdose death rates are high. Cooler colors indicate cold spots - where per capita overdose death rates are low. This plot is useful for comparing and contrasting the prominence of overdoses between different regions of the country. 
 
-# Next Steps
-I immediately start wondering if there are regional or demographic attributes that can explain the presence of drug abuse hotspots. Maybe next I'll bring in Bureau of Economic Analysis or census data.
+# Discussion
+* Data considerations: I analyzed a data *product*, not raw data. Specifically, the [NHDC](https://www.cdc.gov/nchs/data-visualization/drug-poisoning-mortality/) data product is a derivative of highly suppressed CDC death count data. This is a useful product, becuase otherwise it would be difficult to see small-scale spatial patterns in the data. However, I need to learn more about how the product was created, else there is a risk of being misled by biases intrinsic in the data product.
+* What factors are behind geographic patterns?: Additional analysis may focus on using demographic, socioeconomic, and other data to explain emergent spatial patterns in overdose rates. Surely, a natural place to pick up on this topic later. 
+*	This is my first post!: In order to get this published I learned a lot about using GitHub and Jekyll to create web pages. I have *zero* background in web development, so this was a pretty big lift for me. Hopefully, I have a repeatable workflow that will save me time in the future!
+* Currently reading a book called American Overdose by Chris McGreal ([buy it on Amazon](https://www.amazon.com/American-Overdose-Opioid-Tragedy-Three/dp/1549176927)). Mr. McGreal hypothesize that overprescribing presription drugs is at the root of the problem. Is there a data set that tracks prescriptions for narcotics? If so, I could imagine analyzing those data to identify the location of pill mills. Then, use that to explain the patterns I described in this post.
