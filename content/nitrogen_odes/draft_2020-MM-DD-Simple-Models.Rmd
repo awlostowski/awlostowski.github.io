@@ -1,0 +1,95 @@
+---
+title: "Using Simple Models to Explain Ecosystem Patterns"
+author: "Adam N. Wlostowski"
+date: "2020/03/01"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+layout: post
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+```
+
+<style type="text/css">
+
+body, td {
+   font-size: 14px;
+}
+code.r{
+  font-size: 14px;
+}
+pre {
+  font-size: 12px
+}
+</style>
+
+```{r include = F}
+remove(list = ls()) # clear all workspace variables
+cat("\014")         # clear command line
+
+# libraries
+library(dplyr)
+library(ggplot2)
+library(cowplot); theme_set(theme_cowplot())
+
+```
+Simple (mathematical) models are useful learning tools. Given a set of observations, we use models to explain emergent patterns in the data. In this sense, models are hypotheses in the form of equations. If a model can reproduce patterns in the data, the hypothesis might not be wrong. However, if the model cannot explain the observations, the hypothesis is rejected, and we go back to the drawing board. Either way, we learn! 
+
+In this post, I illustrate the power of simple models in the context of river ecosystems. I begin by identifying a pattern. Then, I borrow a hypothesis from the literature to explain the pattern. Finally, I mathematically formalize the hypothesis and test it by seeing if the model can recreate the pattern.
+
+It is necessary to provide some background on stream ecology and Antarctic rivers. I apologize if the background is too dense. I’ve embedded links along the way that direct to you to sources where you can learn more. 
+
+# Background
+## Nitrogen Spiraling
+Nitrogen (N) is a fundamental building block of ecosystems. It is an essential nutrient for life on earth, along with carbon and phosphorous. Understanding N fate and transport provides insight into how ecosystems operate. Nutrient spiraling theory provides a framework for understanding how N moves through river ecosystems. The spiral begins with downstream transport of an inorganic N species dissolved in flowing waters. Organisms in need of inorganic N assimilate it into their organic matter. Eventually, organic matter decomposition by microbes mineralizes inorganic N back into the water column. The spiral is complete.
+
+Nitrogen spiraling is extremely well studied. Uptake and assimilation of inorganic N is one of the best-understood parts of N cycles. This is partially because inorganic N is a pollutant, so assimilation (retention) can be beneficial. However, the fate of assimilated N remains poorly resolved, hampering our ability to close ecosystem N budgets. 
+
+## The McMurdo Dry Valleys, Antarctica
+As it turns out, rivers in the McMurdo Dry Valleys of Antarctica are excellent end-member systems for studying the fate and transport of assimilated N. A few key points you need to know about Antarctic rivers:
+
+-	The McMurdo Dry Valleys are one of the coldest and driest places on earth. In this region it is too cold to rain and most snowfall sublimates before melting. 
+-	Glacial melt is the primary source of flow in Antarctic rivers. Rivers are hydrologically disconnected from adjacent hillslopes.  
+-	Algae are some of the only primary producers found in the region. Rivers are an ideal habitat for algae, which form in mats on the riverbed. There are three types of algae mats. Orange and green mats live in the water column. Black mats live along channel edges.
+-	Black mats are nitrogen fixers (i.e. they can assimilate N~2~ gas from the atmosphere). 
+-	Nitrogen in the stream comes from glacier melt or in-stream N fixation (by black mats). Very little N comes from adjacent hillslopes. This is unusual. In most places on earth, streams get a lot of N (and water) from adjacent hillslopes. 
+-	High flows scour algal mats from the streambed. This is a key mechanism controlling particulate organic matter (POM) concentration.
+-	Hyporheic zone interactions are extensive. Surface water is constantly mixing with shallow groundwater along the course of the stream.
+
+## Nitrogen Isotopes
+Nitrogen isotopes help to track N moving through river ecosystems. Isotopes are atoms with differing numbers of neutrons. Nitrogen has two stable isotopes; ^14^N and ^15^N. δ^15^N is the ratio ^15^N:^14^N. As N moves through different components of the nutrient spiral, the value of δ^15^N increases and decreases. This makes δ^15^N a useful tracer for tracking the fate and transport of N. 
+
+The nitrogen isotope profile of Antarctic rivers is constrained by two end-members. On one hand, black mats are N fixers, so they have δ^15^N signature near the atmospheric standard (δ^15^N ≅ 0 per-mil). On the other hand, atmospheric deposition is the primary source of N in glacier ice. Therefore, glacier ice is characteristically depleted in δ^15^N (from -9.5 to -26.2 per-mil).
+
+# Data
+Tyler Kohler, my friend and colleague, collected samples of algae along several Antarctic Rivers. He measured the δ^15^N signature of algae organic matter and constructed a data set of the spatial variation. He graciously provided me with these data. Read his peer reviewed paper to learn more about the data. 
+Here, I am working with data from a river named *Relict Channel*. It flows intermittently between October and February and is freeze dried for the remainder of the year. Algal mats are abundant along the channel bottom. Eight sites were sampled along a 3 km longitudinal transect. The upstream-most site is located 1.5 km from the glacier.
+```{r}
+# Load observations and take a peek at the data
+
+
+```
+
+# Pattern
+One pattern observed in the data is an upstream to downstream enrichment of orange mat δ^15^N. The pattern is asymptotic. The furthest upstream samples are depleted in δ^15^N and resemble glacial water. Moving downstream, samples become enriched in δ^15^N, and approach the signature of atmospheric N (δ^15^N ≅ 0 per-mil).
+```{r}
+# Plot longitudinal 15N pattern
+
+
+```
+
+# Hypothesis
+Tyler and his co-authors put forward a hypothesis to explain the asymptotic enrichment of δ^15^N. The hypothesis may be frames as a series of events:
+
+First high flows scour black mats at the channel margin. Then mat-derived POM is transported downstream and stored in the hyporheic zone. Hyporheic microbes mineralize black mat POM and produce inorganic N. Finally, exchange flows flush inorganic N from the hyporheic zone into the open channel. As a result, inorganic N mineralized from black mats becomes a progressively larger source of available N with distance downstream.  
+
+![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+

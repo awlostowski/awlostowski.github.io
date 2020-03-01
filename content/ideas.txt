@@ -1,0 +1,9 @@
+Notepad for documenting content ideas. Get your thoughts into writing, else they may not be realized!
+
+- Building deterministic systems models as hypothesis testing tools. Example through the N15 model. Draw a connection to SIR public health model. 
+
+- Chinook winds in Boulder. Analyzing time series data to isolate these events. Look at patterns of their timing and frequency. 
+
+- Colorado snowpack art. Creating a 3D model of Colorado's snowpack history.
+
+- Remote sensing algae, shout out to new research project with Keith.
