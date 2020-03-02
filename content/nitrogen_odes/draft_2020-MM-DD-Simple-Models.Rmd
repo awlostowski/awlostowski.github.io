@@ -38,9 +38,13 @@ cat("\014")         # clear command line
 # libraries
 library(dplyr)
 library(ggplot2)
+library(deSolve)
 library(cowplot); theme_set(theme_cowplot())
 
 ```
+
+**STILL UNDER CONSTRUCTION**
+
 Simple (mathematical) models are useful learning tools. Given a set of observations, we use models to explain emergent patterns in the data. In this sense, models are hypotheses in the form of equations. If a model can reproduce patterns in the data, the hypothesis might not be wrong. However, if the model cannot explain the observations, the hypothesis is rejected, and we go back to the drawing board. Either way, we learn! 
 
 In this post, I illustrate the power of simple models in the context of river ecosystems. I begin by identifying a pattern. Then, I borrow a hypothesis from the literature to explain the pattern. Finally, I mathematically formalize the hypothesis and test it by seeing if the model can recreate the pattern.
@@ -73,17 +77,29 @@ The nitrogen isotope profile of Antarctic rivers is constrained by two end-membe
 Tyler Kohler, my friend and colleague, collected samples of algae along several Antarctic Rivers. He measured the δ^15^N signature of algae organic matter and constructed a data set of the spatial variation. He graciously provided me with these data. Read his peer reviewed paper to learn more about the data. 
 Here, I am working with data from a river named *Relict Channel*. It flows intermittently between October and February and is freeze dried for the remainder of the year. Algal mats are abundant along the channel bottom. Eight sites were sampled along a 3 km longitudinal transect. The upstream-most site is located 1.5 km from the glacier.
 ```{r}
-# Load observations and take a peek at the data
+# Load observations
+dat <- read.csv("relict_channel_data.csv")
 
-
+# look at the data
+head(dat)
 ```
 
 # Pattern
 One pattern observed in the data is an upstream to downstream enrichment of orange mat δ^15^N. The pattern is asymptotic. The furthest upstream samples are depleted in δ^15^N and resemble glacial water. Moving downstream, samples become enriched in δ^15^N, and approach the signature of atmospheric N (δ^15^N ≅ 0 per-mil).
 ```{r}
+# mean d15N at each station
+d15N.av <- dat %>%
+  group_by(distance) %>%
+  summarize(dist = mean(distance), 
+            d15N = mean(d15N))
+
 # Plot longitudinal 15N pattern
+p <- ggplot(dat, aes(x = distance*1000, y = d15N)) +
+  geom_point(size = 3, color = "orange", alpha = 0.4) +
+  geom_line(data = d15N.av, aes(x = distance*1000, y = d15N)) +
+  labs(x = "Distance (meters)")
 
-
+print(p)
 ```
 
 # Hypothesis
@@ -91,5 +107,124 @@ Tyler and his co-authors put forward a hypothesis to explain the asymptotic enri
 
 First high flows scour black mats at the channel margin. Then mat-derived POM is transported downstream and stored in the hyporheic zone. Hyporheic microbes mineralize black mat POM and produce inorganic N. Finally, exchange flows flush inorganic N from the hyporheic zone into the open channel. As a result, inorganic N mineralized from black mats becomes a progressively larger source of available N with distance downstream.  
 
-![alt text](https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png "Logo Title Text 1")
+![A conceptual diagram of N spiraling in Antarctic rivers.(a) N-fixing black mats grow at margins and generate POM during high flow events, which are exported downstream. POM is minearlized in the hyporheic zone, releasing inorganic N for uptake by downstream mats. (b) Upstream locations have the greatest concentrations of glacier-derived N and low mat biomass. As mat abundance increases downstream, glacier-derived N is exhausted, and N mineralized from black mats becomes the dominant N source. The relative magnitude of each processes is illustrated with text size. Figure and caption from Kohler et al., (2018)](images/tk_concept_schematic.png)
+
+# Model
+Can this hypothesis explain the asymptotic enrichment pattern? I formalized the hypothesis with a mathematical model. The model simulates downstream changes in glacier- and black-mat derived inorganic N concentrations. It is a system of two ordinary differential equations. The Equation 1 represents the spatial rate of change in glacier-derived inorganic N. Equation 2 represents the spatial rate of change in black mat-derived inorganic N. 
+
+\begin{align}
+ \frac{dN_g}{dx}=-\lambda(\frac{N_g^2}{N_g+N_b})
+\end{align}
+\begin{align}
+ \frac{dN_b}{dx}=\phi-\lambda(\frac{N_b^2}{N_g+N_b})
+\end{align}
+
+Where *N~g~* is the concentration of glacier-derived inorganic N (micro grams per liter), *N~b~* is the concentration of black mat-derived inorganic N (micro grams per liter), λ is the inorganic N uptake rate of orange mats (per meter), *ϕ* is the flux of inorganic N from the hyporheic zone to the stream (micro grams per liter per meter), and *x* is channel distance (m). 
+
+The δ^15^N is calculated as
+
+\begin{align}
+ \delta^{15}N=\frac{(\delta^{15}N_b \times N_b+\delta^{15}N_g \times N_g)}{N_b + N_g}
+\end{align}
+
+Where δ^15^N~b~ is the nitrogen isotopic signature of black mat, and δ^15^N~g~ is the nitrogen isotopic signature of glacier ice.
+
+```{r}
+# model equations
+model <- function(distance, state, parameters) {
+  par <- as.list(c(state, parameters))
+  with(par, {
+    
+    dNg <- -lambda * (Ng^2/(Ng + Nb))           # Change is glacier-derived nitrogen with distance
+    dNb <- phi - (lambda * (Nb^2/(Nb + Ng)))    # change in black mat derived nitrogen with distance
+    
+    list(c(dNg, dNb))
+  })
+}
+```
+
+# Insights
+## Model Optimization
+First we need to establish the model domain, initial conditions, and δ^15^N signatures of glacier ice and black mats.
+
+* **Check with Diane about value of boundary conditions, what is reasonable for glacier ice DIN (Ng)?**
+```{r}
+# initialize the model domain, channel distance in meters
+dist = seq(1530,4000,by = 1)
+
+# initial conditions, N-species compositions at the upper boundary condition. 
+init <- c(Ng = 10,  # concentration of nigrogen in glacier ice (ug/L)
+          Nb = 1)   # concentration of black-mat derived N at x = 0
+
+# end members: delN-15 concentrations in black mats and glacier ice
+n15g = -10 
+n15b = 0 
+```
+
+Next, we need to specify an objective function to evaluate how well the model fits the data. We will use the Root-Mean-Squared-Error (RMSE) of simulted to observed δ^15^N
+```{r}
+# Objective function - root mean squared error on d15N
+RSS <- function(parameters) {
+  
+  names(parameters) <- c("phi", "lambda")
+  
+  # run the ode system
+  out <- ode(y = init, # initial conditions
+             times = dat$distance * 1000, # distance (converted from km to m)
+             func = model, # the system of odes
+             parms = parameters) # parameter values
+
+  fit <- data.frame(out)
+  
+  fit <- fit %>%
+    mutate(n15 = ((n15g * Ng) + (n15b * Nb))/(Ng + Nb))
+  
+  # return: RMSE with respect to d15N
+  sum((dat$d15N - fit$n15)^2)
+  
+}
+```
+
+Now, we can optimize the model using the `optim` function from the `stats` package.
+```{r}
+# optimize with some sensible conditions
+Opt <- optim(c(0.2, 1),          # initial guess
+             RSS,                  # objective function
+             method = "L-BFGS-B",  # optimization routine
+             lower = c(0, 0),      # lower bound of search range
+             upper = c(1, 1))      # upper bound of search range
+
+Opt_par <- setNames(Opt$par, c("phi", "lambda")) # rename the optimal parameter set
+
+print(Opt_par)
+```
+
+**Are these parameter values reasonable? The assimilation rate is about an order of magnitude greater than that for Green Creek (McKnight et al., 2004). Maybe this is justified by the abundance of mats in Relict Channel and the fact that the channel rarely sees flow?**
+
+Let's plot the modeled and observed δ^15^N patterns.
+```{r}
+fit <- data.frame(ode(y = init, times = dist, func = model, parms = Opt_par))
+
+fit <- fit %>%
+  mutate(n15 = ((n15g * Ng) + (n15b * Nb))/(Ng + Nb))
+
+p <- ggplot(fit, aes(time, n15)) +
+  geom_line() +
+  geom_point(data = dat, aes(x = distance*1000, y = d15N), color = "orange", size = 8, alpha = 0.3) +
+  labs(x = "Distance From Glacier (meters)",
+       y = "δ15N")
+
+print(p)
+```
+
+Let's plot the modeled concentrtions of glacier- and black mat-derived inorganic nitrogen
+```{r}
+p <- ggplot(fit, aes(time, Nb)) +
+  geom_line(color = "black", size = 2) +
+  geom_line(data = fit, aes(time, Ng), color = "blue", size = 2) +
+  labs(x = "Distance From Glacier (m)",
+       y = "Disolved Inorganic Nitrogen (ug/L)")
+
+print(p)
+```
 
